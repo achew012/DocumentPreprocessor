@@ -1,19 +1,18 @@
 import os
-# from unittest import skip
-import pandas as pd
 from torch import nn
 import torch
 from datasets import load_metric, load_dataset
 from transformers.models.led import LEDConfig, LEDTokenizer, LEDForConditionalGeneration
 import pytorch_lightning as pl
 from clearml import StorageManager, Dataset as ClearML_Dataset
-
 from common.utils import *
+
 # from torch.utils.data import DataLoader
 # from data.data import PreprocessingDataset
 # from metrics.eval import eval_ceaf
 
 import ipdb
+
 
 class LongformerDenoiser(pl.LightningModule):
     """Pytorch Lightning module. It wraps up the model, data loading and training code"""
@@ -35,32 +34,34 @@ class LongformerDenoiser(pl.LightningModule):
         # self.c4_test = load_dataset(
         #     "allenai/c4", data_files=val_data_files, split="validation[10%:20%]")
 
-        if self.cfg.clearml_dataset_project_name and self.cfg.clearml_dataset_name:
-            clearml_data_object = ClearML_Dataset.get(dataset_name=self.cfg.clearml_dataset_name, dataset_project=self.cfg.clearml_dataset_project_name,
-                                                      dataset_tags=list(self.cfg.clearml_dataset_tags), only_published=True)
-            self.dataset_path = clearml_data_object.get_local_copy()
+        # if self.cfg.clearml_dataset_project_name and self.cfg.clearml_dataset_name:
+        #     clearml_data_object = ClearML_Dataset.get(dataset_name=self.cfg.clearml_dataset_name, dataset_project=self.cfg.clearml_dataset_project_name,
+        #                                               dataset_tags=list(self.cfg.clearml_dataset_tags), only_published=True)
+        #     self.dataset_path = clearml_data_object.get_local_copy()
 
         print("CUDA available: ", torch.cuda.is_available())
 
         # Load and update config then load a pretrained LEDForConditionalGeneration
-        self.base_model_config = LEDConfig.from_pretrained(
-            self.cfg.model_name)
+        self.base_model_config = LEDConfig.from_pretrained(self.cfg.model_name)
 
         # Load tokenizer and metric
         self.tokenizer = LEDTokenizer.from_pretrained(
-            self.cfg.model_name, use_fast=True)
+            self.cfg.model_name, use_fast=True
+        )
         self.base_model = LEDForConditionalGeneration.from_pretrained(
-            self.cfg.model_name, config=self.base_model_config)
+            self.cfg.model_name, config=self.base_model_config
+        )
 
-        self.bleu_metric = load_metric('bleu')
-        self.rouge_metric = load_metric('rouge')
+        self.bleu_metric = load_metric("bleu")
+        self.rouge_metric = load_metric("rouge")
 
     def _set_global_attention_mask(self, input_ids):
         """Configure the global attention pattern based on the self.task"""
 
         # Local attention everywhere - no global attention
         global_attention_mask = torch.zeros(
-            input_ids.shape, dtype=torch.long, device=input_ids.device)
+            input_ids.shape, dtype=torch.long, device=input_ids.device
+        )
 
         # Gradient Accumulation caveat 1:
         # For gradient accumulation to work, all model parameters should contribute
@@ -95,14 +96,16 @@ class LongformerDenoiser(pl.LightningModule):
 
     def forward(self, **batch):
 
-        input_ids, attention_mask, question_ids = batch[
-            "input_ids"], batch["attention_mask"], batch["question_ids"]
+        input_ids, attention_mask, question_ids = (
+            batch["input_ids"],
+            batch["attention_mask"],
+            batch["question_ids"],
+        )
 
         outputs = self.base_model(
             input_ids=input_ids,
             attention_mask=attention_mask,  # mask padding tokens
-            global_attention_mask=self._set_global_attention_mask(
-                input_ids),
+            global_attention_mask=self._set_global_attention_mask(input_ids),
             # decoder_input_ids=question_ids,
             labels=question_ids,
             output_hidden_states=True,
@@ -113,19 +116,22 @@ class LongformerDenoiser(pl.LightningModule):
     def training_step(self, batch, batch_nb):
         """Call the forward pass then return loss"""
         if self.cfg.batch_size == 1:
-            batch["input_ids"], batch["attention_mask"], batch["question_ids"] = batch[
-                "input_ids"].unsqueeze(0), batch["attention_mask"].unsqueeze(0), batch["question_ids"].unsqueeze(0)
+            batch["input_ids"], batch["attention_mask"], batch["question_ids"] = (
+                batch["input_ids"].unsqueeze(0),
+                batch["attention_mask"].unsqueeze(0),
+                batch["question_ids"].unsqueeze(0),
+            )
             outputs = self.forward(**batch)
         else:
             outputs = self.forward(**batch)
 
-        return {'loss': outputs.loss}
+        return {"loss": outputs.loss}
 
     def training_epoch_end(self, outputs):
         total_loss = []
         for batch in outputs:
             total_loss.append(batch["loss"])
-        self.log("train_loss", sum(total_loss)/len(total_loss))
+        self.log("train_loss", sum(total_loss) / len(total_loss))
 
     # def _get_dataloader(self, split_name):
     #     """Get training and validation dataloaders"""
@@ -155,7 +161,8 @@ class LongformerDenoiser(pl.LightningModule):
 
     def generate(self, **batch):
         return self.base_model.generate(
-            **batch, num_beams=5,
+            **batch,
+            num_beams=5,
             num_return_sequences=1,
             return_dict_in_generate=True,
             output_scores=True
@@ -163,22 +170,26 @@ class LongformerDenoiser(pl.LightningModule):
 
     def _evaluation_step(self, split, batch, batch_nb):
         if self.cfg.eval_batch_size == 1:
-            batch["input_ids"], batch["attention_mask"], batch["question_ids"] = batch[
-                "input_ids"].unsqueeze(0), batch["attention_mask"].unsqueeze(0), batch["question_ids"].unsqueeze(0)
+            batch["input_ids"], batch["attention_mask"], batch["question_ids"] = (
+                batch["input_ids"].unsqueeze(0),
+                batch["attention_mask"].unsqueeze(0),
+                batch["question_ids"].unsqueeze(0),
+            )
 
         loss = self.forward(**batch).loss
         question_ids = batch.pop("question_ids", None)
         outputs = self.generate(**batch)
         generated_outcome = self.tokenizer.batch_decode(
-            outputs["sequences"], skip_special_tokens=True)
-        gold = self.tokenizer.batch_decode(
-            question_ids, skip_special_tokens=True)
+            outputs["sequences"], skip_special_tokens=True
+        )
+        gold = self.tokenizer.batch_decode(question_ids, skip_special_tokens=True)
 
         # results = self.bleu_metric.compute(
         #     predictions=generated_outcome, references=gold)
 
         results = self.rouge_metric.compute(
-            predictions=generated_outcome, references=gold)
+            predictions=generated_outcome, references=gold
+        )
 
         # self.clearml_logger.report_scalar(
         #     title="batch_rouge_{}".format(split), series=split, value=results["rouge1"], iteration=batch_nb
@@ -190,8 +201,13 @@ class LongformerDenoiser(pl.LightningModule):
 
     def validation_step(self, batch, batch_nb):
         batch_loss, batch_generated_text, batch_rouge = self._evaluation_step(
-            'val', batch, batch_nb)
-        return {"results": batch_rouge, "loss": batch_loss, "generated_text": batch_generated_text}
+            "val", batch, batch_nb
+        )
+        return {
+            "results": batch_rouge,
+            "loss": batch_loss,
+            "generated_text": batch_generated_text,
+        }
 
     def validation_epoch_end(self, outputs):
         total_loss = []
@@ -199,13 +215,24 @@ class LongformerDenoiser(pl.LightningModule):
         for batch in outputs:
             total_loss.append(batch["loss"])
             total_rouge.append(batch["results"]["rouge1"].mid.fmeasure)
-        self.log("val_loss", sum(total_loss)/len(total_loss), )
-        self.log("average_val_rouge1", sum(total_rouge)/len(total_rouge),)
+        self.log(
+            "val_loss",
+            sum(total_loss) / len(total_loss),
+        )
+        self.log(
+            "average_val_rouge1",
+            sum(total_rouge) / len(total_rouge),
+        )
 
     def test_step(self, batch, batch_nb):
         batch_loss, batch_generated_text, batch_rouge = self._evaluation_step(
-            'test', batch, batch_nb)
-        return {"results": batch_rouge, "loss": batch_loss, "generated_text": batch_generated_text}
+            "test", batch, batch_nb
+        )
+        return {
+            "results": batch_rouge,
+            "loss": batch_loss,
+            "generated_text": batch_generated_text,
+        }
 
     def test_epoch_end(self, outputs):
         total_loss = []
@@ -213,8 +240,8 @@ class LongformerDenoiser(pl.LightningModule):
         for batch in outputs:
             total_loss.append(batch["loss"])
             total_rouge.append(batch["results"]["rouge1"].mid.fmeasure)
-        self.log("test_loss", sum(total_loss)/len(total_loss))
-        self.log("average_test_rouge1", sum(total_rouge)/len(total_rouge))
+        self.log("test_loss", sum(total_loss) / len(total_loss))
+        self.log("average_test_rouge1", sum(total_rouge) / len(total_rouge))
 
     def configure_optimizers(self):
         """Configure the optimizer and the learning rate scheduler"""
