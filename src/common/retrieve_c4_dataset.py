@@ -1,6 +1,8 @@
 from clearml import Task, StorageManager, Logger, Dataset
+
 import pandas as pd 
 import numpy as np
+
 
 PROJECT_NAME = "incubation c4"
 TASK_NAME = "dataset_store_c4_dataset"
@@ -75,6 +77,7 @@ cleaned_shard_path = dataset_to_shard(cleaned_dataset,shard_path="/tmp/cleaned_d
 uncleaned_shard_path = dataset_to_shard(uncleaned_dataset,shard_path="/tmp/uncleaned_dataset")
 
 ## load dataset from shards
+<<<<<<< HEAD:src/common/retrieve_c4_dataset.py
 clean_dataset = shard_to_dataset(cleaned_shard_path, num_shards=8)
 unclean_dataset = shard_to_dataset(uncleaned_shard_path, num_shards=8)
 
@@ -82,12 +85,23 @@ clean_df = clean_dataset.to_pandas()
 print(clean_df.info())
 unclean_df = unclean_dataset.to_pandas()
 print(unclean_df.info())
+=======
+clean_dataset = shard_to_dataset(cleaned_shard_path, num_shards=1)
+unclean_dataset = shard_to_dataset(uncleaned_shard_path, num_shards=1)
+
+clean_df = clean_dataset.to_pandas()
+unclean_df = unclean_dataset.to_pandas()
+>>>>>>> c38e84e7c3ed30b8ac1bbb102628a2d146b57f57:tasks/retrieve_c4_dataset.py
 
 result = pd.merge(clean_df,unclean_df,how="inner",left_on='url',right_on='url',suffixes=("", "_y"))
 result = result.drop(['timestamp_y'], axis = 1)
 result.rename(columns={'text': 'clean', 'text_y': 'raw'}, inplace=True)
 result['doc_id'] = result.index
 print(result.info())
+<<<<<<< HEAD:src/common/retrieve_c4_dataset.py
+=======
+
+>>>>>>> c38e84e7c3ed30b8ac1bbb102628a2d146b57f57:tasks/retrieve_c4_dataset.py
 print(clean_dataset.features)
 # print(clean_dataset.unique('url'))
 
@@ -103,6 +117,17 @@ test.to_parquet("test.parquet", engine='fastparquet')
 dataset.add_files("train.parquet")
 dataset.add_files("validate.parquet")
 dataset.add_files("test.parquet")
+# dataset.add_files("dataset_dataframe.csv.gz")
+dataset.upload()
+dataset.finalize()
+
+
+dataset = Dataset.create(
+    dataset_project='datasets/c4', dataset_name="c4_raw_clean"
+)
+result.to_parquet("c4_dataset_sample.parquet", engine='fastparquet')
+# df.to_csv("dataset_dataframe.csv.gz", compression="gzip")
+dataset.add_files("c4_dataset_sample.parquet")
 # dataset.add_files("dataset_dataframe.csv.gz")
 dataset.upload()
 dataset.finalize()
