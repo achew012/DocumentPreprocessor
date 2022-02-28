@@ -1,13 +1,36 @@
 import hydra
 from omegaconf import OmegaConf
 import os
-from model import LongformerDenoiser
+from models.model import LongformerDenoiser
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from clearml import Task, StorageManager
 
+from torch.utils.data import DataLoader
+from data.data import PreprocessingDataset
+from transformers.models.led import LEDTokenizer
+
+
 Task.add_requirements('rouge_score')
 Task.add_requirements('nltk')
+
+
+def get_dataloader(split_name, cfg):
+    """Get training and validation dataloaders"""
+
+    if cfg.debug:
+        dataset_split = dataset_split[:10]
+
+    tokenizer = LEDTokenizer.from_pretrained(
+        cfg.model_name, use_fast=True)
+
+    dataset = PreprocessingDataset(dataset=dataset_split,
+                                    tokenizer=tokenizer, cfg=cfg)
+
+    if split_name in ["dev", "test"]:
+        return DataLoader(dataset, batch_size=cfg.eval_batch_size, num_workers=cfg.num_workers, collate_fn=PreprocessingDataset.collate_fn)
+    else:
+        return DataLoader(dataset, batch_size=cfg.batch_size, num_workers=cfg.num_workers, collate_fn=PreprocessingDataset.collate_fn)
 
 
 def train(cfg, task) -> LongformerDenoiser:
@@ -21,16 +44,20 @@ def train(cfg, task) -> LongformerDenoiser:
         period=5
     )
 
+    train_loader = get_dataloader('train', cfg)
+    val_loader = get_dataloader('dev', cfg)
+
     model = LongformerDenoiser(cfg, task)
     trainer = pl.Trainer(gpus=1, max_epochs=cfg.num_epochs, accumulate_grad_batches=cfg.grad_accum,
                          callbacks=[checkpoint_callback])
-    trainer.fit(model)
+    trainer.fit(model, train_loader, val_loader)
     return model
 
 
 def test(cfg, model) -> list:
+    test_loader = get_dataloader('test', cfg)
     trainer = pl.Trainer(gpus=1, max_epochs=cfg.num_epochs)
-    results = trainer.test(model)
+    results = trainer.test(model, test_loader)
     return results
 
 

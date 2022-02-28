@@ -1,19 +1,19 @@
 import os
-from unittest import skip
+# from unittest import skip
 import pandas as pd
-import ipdb
-from torch.utils.data import DataLoader
 from torch import nn
 import torch
-from data import PreprocessingDataset
-from utils import *
-from eval import eval_ceaf
 from datasets import load_metric, load_dataset
-
 from transformers.models.led import LEDConfig, LEDTokenizer, LEDForConditionalGeneration
 import pytorch_lightning as pl
 from clearml import StorageManager, Dataset as ClearML_Dataset
 
+from common.utils import *
+# from torch.utils.data import DataLoader
+# from data.data import PreprocessingDataset
+# from metrics.eval import eval_ceaf
+
+import ipdb
 
 class LongformerDenoiser(pl.LightningModule):
     """Pytorch Lightning module. It wraps up the model, data loading and training code"""
@@ -26,15 +26,14 @@ class LongformerDenoiser(pl.LightningModule):
         self.task = task
         self.clearml_logger = self.task.get_logger()
 
-        train_data_files = {"train": "en/c4-train.00000-of-01024.json.gz"}
-        self.c4_train = load_dataset(
-            "allenai/c4", data_files=train_data_files, split="train")
-
-        val_data_files = {"validation": "en/c4-validation.*.json.gz"}
-        self.c4_validation = load_dataset(
-            "allenai/c4", data_files=val_data_files, split="validation[:10%]")
-        self.c4_test = load_dataset(
-            "allenai/c4", data_files=val_data_files, split="validation[10%:20%]")
+        # train_data_files = {"train": "en/c4-train.00000-of-01024.json.gz"}
+        # self.c4_train = load_dataset(
+        #     "allenai/c4", data_files=train_data_files, split="train")
+        # val_data_files = {"validation": "en/c4-validation.*.json.gz"}
+        # self.c4_validation = load_dataset(
+        #     "allenai/c4", data_files=val_data_files, split="validation[:10%]")
+        # self.c4_test = load_dataset(
+        #     "allenai/c4", data_files=val_data_files, split="validation[10%:20%]")
 
         if self.cfg.clearml_dataset_project_name and self.cfg.clearml_dataset_name:
             clearml_data_object = ClearML_Dataset.get(dataset_name=self.cfg.clearml_dataset_name, dataset_project=self.cfg.clearml_dataset_project_name,
@@ -46,10 +45,6 @@ class LongformerDenoiser(pl.LightningModule):
         # Load and update config then load a pretrained LEDForConditionalGeneration
         self.base_model_config = LEDConfig.from_pretrained(
             self.cfg.model_name)
-
-        # self.base_model_config.gradient_checkpointing = True
-        # self.base_model_config.max_length = cfg.max_input_len
-        # self.base_model_config.min_length = 24
 
         # Load tokenizer and metric
         self.tokenizer = LEDTokenizer.from_pretrained(
@@ -132,31 +127,31 @@ class LongformerDenoiser(pl.LightningModule):
             total_loss.append(batch["loss"])
         self.log("train_loss", sum(total_loss)/len(total_loss))
 
-    def _get_dataloader(self, split_name):
-        """Get training and validation dataloaders"""
+    # def _get_dataloader(self, split_name):
+    #     """Get training and validation dataloaders"""
 
-        if self.cfg.debug:
-            dataset_split = dataset_split[:10]
+    #     if self.cfg.debug:
+    #         dataset_split = dataset_split[:10]
 
-        dataset = PreprocessingDataset(dataset=dataset_split,
-                                       tokenizer=self.tokenizer, cfg=self.cfg)
+    #     dataset = PreprocessingDataset(dataset=dataset_split,
+    #                                    tokenizer=self.tokenizer, cfg=self.cfg)
 
-        if split_name in ["dev", "test"]:
-            return DataLoader(dataset, batch_size=self.cfg.eval_batch_size, num_workers=self.cfg.num_workers, collate_fn=QGDataset.collate_fn)
-        else:
-            return DataLoader(dataset, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers, collate_fn=QGDataset.collate_fn)
+    #     if split_name in ["dev", "test"]:
+    #         return DataLoader(dataset, batch_size=self.cfg.eval_batch_size, num_workers=self.cfg.num_workers, collate_fn=QGDataset.collate_fn)
+    #     else:
+    #         return DataLoader(dataset, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers, collate_fn=QGDataset.collate_fn)
 
-    def train_dataloader(self):
-        print("Loading train dataset")
-        return self._get_dataloader('train')
+    # def train_dataloader(self):
+    #     print("Loading train dataset")
+    #     return self._get_dataloader('train')
 
-    def val_dataloader(self):
-        print("Loading dev dataset")
-        return self._get_dataloader('dev')
+    # def val_dataloader(self):
+    #     print("Loading dev dataset")
+    #     return self._get_dataloader('dev')
 
-    def test_dataloader(self):
-        print("Loading test dataset")
-        return self._get_dataloader('test')
+    # def test_dataloader(self):
+    #     print("Loading test dataset")
+    #     return self._get_dataloader('test')
 
     def generate(self, **batch):
         return self.base_model.generate(
