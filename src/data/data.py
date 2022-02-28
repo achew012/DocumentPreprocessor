@@ -1,49 +1,16 @@
 import torch
 from torch.utils.data import Dataset
+import pandas as pd
 import ipdb
-
-role_map = {
-    'PerpOrg': 'perpetrator organizations',
-    'PerpInd': 'perpetrator individuals',
-    'Victim': 'victims',
-    'Target': 'targets',
-    'Weapon': 'weapons'
-}
 
 
 class PreprocessingDataset(Dataset):
     # doc_list
     # extracted_list as template
-    def __init__(self, dataset, tokenizer, cfg):
+    def __init__(self, dataset_path, tokenizer, cfg):
         self.tokenizer = tokenizer
 
-        self.processed_dataset = {
-            "docid": [],
-            "context": [],
-            "input_ids": [],
-            "attention_mask": [],
-            "qns": [],
-            "start": [],
-            "end": []
-        }
-
-        dataset["context_answer"] = dataset["answer"] + \
-            " {} ".format(self.tokenizer.sep_token)+dataset["context"]
-
-        dataset = dataset[:20000]
-
-        self.context_answer_ids = [
-            self.tokenizer(
-                row["context_answer"], padding="max_length", truncation=True,
-                max_length=cfg.max_input_len, return_tensors="pt")
-            for idx, row in dataset.iterrows()]
-
-        self.question_ids = [
-            self.tokenizer(row["question"], padding="max_length",
-                           truncation=True, max_length=cfg.max_output_len, return_tensors="pt")["input_ids"]
-            for idx, row in dataset.iterrows()]
-
-        # ipdb.set_trace()
+        dataset = pd.read_parquet(dataset_path, engine="fastparquet")
 
     def __len__(self):
         """Returns length of the dataset"""
@@ -52,9 +19,15 @@ class PreprocessingDataset(Dataset):
     def __getitem__(self, idx):
         """Gets an example from the dataset. The input and output are tokenized and limited to a certain seqlen."""
         item = {}
-        item['input_ids'] = self.context_answer_ids[idx]["input_ids"]
-        item['attention_mask'] = self.context_answer_ids[idx]["attention_mask"]
-        item['question_ids'] = self.question_ids[idx]
+        row = self.dataset.loc[idx].compute()
+        source = self.tokenizer(row["raw"].iloc[0], return_tensors="pt")
+        item["src_input_ids"] = source["input_ids"]
+        item["src_attention_mask"] = source["attention_mask"]
+
+        target = self.tokenizer(row["clean"].iloc[0], return_tensors="pt")
+        item["tgt_input_ids"] = source["input_ids"]
+        item["tgt_attention_mask"] = source["attention_mask"]
+
         return item
 
     @staticmethod
@@ -64,14 +37,14 @@ class PreprocessingDataset(Dataset):
         The collate function is called by PyTorch DataLoader
         """
 
-        input_ids = torch.stack([ex['input_ids'] for ex in batch]).squeeze()
-        attention_mask = torch.stack(
-            [ex['attention_mask'] for ex in batch]).squeeze()
-        question_ids = torch.stack([ex['question_ids']
-                                   for ex in batch]).squeeze()
+        src_input_ids = torch.stack([ex["src_input_ids"] for ex in batch])
+        src_attention_mask = torch.stack([ex["src_attention_mask"] for ex in batch])
+        tgt_input_ids = torch.stack([ex["tgt_input_ids"] for ex in batch])
+        tgt_attention_mask = torch.stack([ex["tgt_attention_mask"] for ex in batch])
 
         return {
-            'input_ids': input_ids,
-            'attention_mask': attention_mask,
-            'question_ids': question_ids
+            "src_input_ids": src_input_ids,
+            "src_attention_mask": src_attention_mask,
+            "tgt_input_ids": tgt_input_ids,
+            "tgt_attention_mask": tgt_attention_mask,
         }

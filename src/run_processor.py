@@ -24,22 +24,22 @@ def get_dataloader(split_name, cfg):
         dataset_name=cfg.clearml_dataset_name,
         dataset_project=cfg.clearml_dataset_project_name,
         dataset_tags=list(cfg.clearml_dataset_tags),
-        only_published=True,
+        # only_published=True,
     )
     dataset_path = clearml_data_object.get_local_copy()
-
-    dataset_split = pd.read_csv(
-        os.path.join(
-            dataset_path,
-            "{}.csv".format(split_name),
-        )
-    )
 
     if cfg.debug:
         dataset_split = dataset_split[:10]
 
     tokenizer = LEDTokenizer.from_pretrained(cfg.model_name, use_fast=True)
-    dataset = PreprocessingDataset(dataset=dataset_split, tokenizer=tokenizer, cfg=cfg)
+    dataset = PreprocessingDataset(
+        dataset_path=os.path.join(
+            dataset_path,
+            "{}.parquet".format(split_name),
+        ),
+        tokenizer=tokenizer,
+        cfg=cfg,
+    )
 
     if split_name in ["dev", "test"]:
         return DataLoader(
@@ -60,16 +60,16 @@ def get_dataloader(split_name, cfg):
 def train(cfg, task) -> LongformerDenoiser:
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath="./",
-        filename="best_ner_model",
+        filename="best_model",
         monitor="val_loss",
         mode="min",
         save_top_k=1,
         save_weights_only=True,
-        period=5,
+        every_n_epochs=5,
     )
 
     train_loader = get_dataloader("train", cfg)
-    val_loader = get_dataloader("dev", cfg)
+    val_loader = get_dataloader("validate", cfg)
 
     model = LongformerDenoiser(cfg, task)
     trainer = pl.Trainer(

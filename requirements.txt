@@ -27,3 +27,4 @@ clearml==1.1.6
 pathlib2
 
 git+https://github.com/huggingface/datasets.git
+fastparquet
