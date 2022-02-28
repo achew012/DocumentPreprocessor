@@ -87,3 +87,8 @@ target/
 
 # Mypy cache
 .mypy_cache/
+
+#shearman's venv
+venv
+
+c4_dataset_sample.parquet

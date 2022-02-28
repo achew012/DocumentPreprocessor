@@ -1,9 +1,11 @@
 from clearml import Task, StorageManager, Logger, Dataset
+import pandas as pd 
+import numpy as np
 
 PROJECT_NAME = "incubation c4"
 TASK_NAME = "dataset_store_c4_dataset"
 
-task = Task.init(project_name=PROJECT_NAME, task_name=TASK_NAME)
+task = Task.init(project_name=PROJECT_NAME, task_name=TASK_NAME,output_uri='s3://experiment-logging')
 task.set_base_docker(
     docker_image="nvidia/cuda:11.4.0-cudnn8-devel-ubuntu20.04",
 )
@@ -18,7 +20,7 @@ args = {
 }
 
 task.connect(args)
-task.execute_remotely(queue_name='cpu-only')
+# task.execute_remotely(queue_name='compute')
 
 print(args)
 
@@ -31,15 +33,16 @@ unclean_dataset_variant_name = args["unclean_dataset_variant_name"]
 unclean_dataset_split = args["unclean_dataset_split"]
 
 
-################## dataset_store_hf_datasets #################
+################## dataset_store_c4_datasets #################
 from datasets import load_dataset, load_from_disk, concatenate_datasets
 
 cleaned_dataset = load_dataset(
-    path=clean_dataset_name, name=clean_dataset_variant_name, split=clean_dataset_split,data_files='https://huggingface.co/datasets/allenai/c4/blob/main/en/c4-train.00000-of-01024.json.gz'
+    'allenai/c4',data_files='en/c4-train.00000-of-01024.json.gz',split='train'
 )
 
+
 uncleaned_dataset = load_dataset(
-    path=unclean_dataset_name, name=unclean_dataset_variant_name, split=unclean_dataset_split,data_files='https://huggingface.co/datasets/allenai/c4/blob/main/en.noclean/c4-train.00000-of-07168.json.gz'
+    'allenai/c4',data_files='en.noclean/c4-train.00000-of-07168.json.gz',split='train'
 )
 
 print("Number of samples in {} dataset".format(args['clean_dataset_name']), cleaned_dataset.num_rows)
@@ -72,11 +75,38 @@ cleaned_shard_path = dataset_to_shard(cleaned_dataset,shard_path="/tmp/cleaned_d
 uncleaned_shard_path = dataset_to_shard(uncleaned_dataset,shard_path="/tmp/uncleaned_dataset")
 
 ## load dataset from shards
-clean_dataset = shard_to_dataset(cleaned_shard_path,shard_path="/tmp/cleaned_dataset")
-unclean_dataset = shard_to_dataset(uncleaned_shard_path,shard_path="/tmp/uncleaned_dataset")
+clean_dataset = shard_to_dataset(cleaned_shard_path, num_shards=8)
+unclean_dataset = shard_to_dataset(uncleaned_shard_path, num_shards=8)
 
+clean_df = clean_dataset.to_pandas()
+print(clean_df.info())
+unclean_df = unclean_dataset.to_pandas()
+print(unclean_df.info())
+
+result = pd.merge(clean_df,unclean_df,how="inner",left_on='url',right_on='url',suffixes=("", "_y"))
+result = result.drop(['timestamp_y'], axis = 1)
+result.rename(columns={'text': 'clean', 'text_y': 'raw'}, inplace=True)
+result['doc_id'] = result.index
+print(result.info())
 print(clean_dataset.features)
-print(clean_dataset.unique('url'))
+# print(clean_dataset.unique('url'))
+
+train, validate, test = np.split(result.sample(frac=1, random_state=42), [int(.6*len(result)), int(.8*len(result))])
+
+dataset = Dataset.create(
+    dataset_project='datasets/c4', dataset_name="c4_raw_clean"
+)
+train.to_parquet("train.parquet", engine='fastparquet')
+validate.to_parquet("validate.parquet", engine='fastparquet')
+test.to_parquet("test.parquet", engine='fastparquet')
+# df.to_csv("dataset_dataframe.csv.gz", compression="gzip")
+dataset.add_files("train.parquet")
+dataset.add_files("validate.parquet")
+dataset.add_files("test.parquet")
+# dataset.add_files("dataset_dataframe.csv.gz")
+dataset.upload()
+dataset.finalize()
+
 
 ## save dataset shards as Dataset
 # clean_dataset_name = "_".join([clean_dataset_name, clean_dataset_variant_name, clean_dataset_split])
