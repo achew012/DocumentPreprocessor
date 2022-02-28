@@ -92,3 +92,6 @@ target/
 venv
 
 c4_dataset_sample.parquet
+outputs
+models
+data
