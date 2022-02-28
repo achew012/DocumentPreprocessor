@@ -19,8 +19,9 @@ class PreprocessingDataset(Dataset):
     def __getitem__(self, idx):
         """Gets an example from the dataset. The input and output are tokenized and limited to a certain seqlen."""
         item = {}
-        row = self.dataset.loc[idx].compute()
-        source = self.tokenizer(row["raw"].iloc[0], return_tensors="pt")
+        ipdb.set_trace()
+        row = self.dataset
+        source = self.tokenizer(row["raw"], return_tensors="pt")
         item["src_input_ids"] = source["input_ids"]
         item["src_attention_mask"] = source["attention_mask"]
 

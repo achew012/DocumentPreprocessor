@@ -29,5 +29,3 @@ clearml_dataset_tags: []
 debug: False
 train: True
 test: True
-role_list: ["PerpInd", "PerpOrg", "Target", "Victim", "Weapon"]
-
