@@ -10,11 +10,11 @@ class PreprocessingDataset(Dataset):
     def __init__(self, dataset_path, tokenizer, cfg):
         self.tokenizer = tokenizer
 
-        dataset = pd.read_parquet(dataset_path, engine="fastparquet")
+        self.dataset = pd.read_parquet(dataset_path, engine="fastparquet")
 
     def __len__(self):
         """Returns length of the dataset"""
-        return len(self.question_ids)
+        return len(self.dataset)
 
     def __getitem__(self, idx):
         """Gets an example from the dataset. The input and output are tokenized and limited to a certain seqlen."""
