@@ -95,3 +95,6 @@ c4_dataset_sample.parquet
 outputs
 models
 data
+
+#elwin's venv
+src/common/modules/sentence-transformers/all-mpnet-base-v2
