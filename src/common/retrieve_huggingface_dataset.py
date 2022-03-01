@@ -6,6 +6,8 @@ import numpy as np
 
 PROJECT_NAME = "incubation c4"
 TASK_NAME = "dataset_store_c4_dataset"
+DATASET_PROJECT = "datasets/c4"
+DATASET_NAME = "c4_raw_clean"
 
 task = Task.init(project_name=PROJECT_NAME, task_name=TASK_NAME,output_uri='s3://experiment-logging')
 task.set_base_docker(
@@ -22,7 +24,7 @@ args = {
 }
 
 task.connect(args)
-# task.execute_remotely(queue_name='compute')
+task.execute_remotely(queue_name='compute')
 
 print(args)
 
@@ -39,12 +41,12 @@ unclean_dataset_split = args["unclean_dataset_split"]
 from datasets import load_dataset, load_from_disk, concatenate_datasets
 
 cleaned_dataset = load_dataset(
-    'allenai/c4',data_files='en/c4-train.00000-of-01024.json.gz',split='train'
+    path='allenai/c4',data_files='en/c4-train.0000[0-1]-of-01024.json.gz',split=clean_dataset_split
 )
 
 
 uncleaned_dataset = load_dataset(
-    'allenai/c4',data_files='en.noclean/c4-train.00000-of-07168.json.gz',split='train'
+    path='allenai/c4',data_files='en.noclean/c4-train.0000[0-1]-of-07168.json.gz',split=unclean_dataset_split
 )
 
 print("Number of samples in {} dataset".format(args['clean_dataset_name']), cleaned_dataset.num_rows)
@@ -65,11 +67,29 @@ def shard_to_dataset(shard_path="/tmp/dataset", num_shards=8):
     )
     return dataset
 
-def join(clean_set, uncleaned_set):
+def create_dataset(dataset_project, dataset_name):
+    parent_dataset = _get_last_child_dataset(dataset_project, dataset_name)
+    if parent_dataset:
+        print("create child")
+        if not parent_dataset.is_final():
+            parent_dataset.finalize()
+        child_dataset = Dataset.create(
+            dataset_name, dataset_project, parent_datasets=[parent_dataset]
+        )
+        return child_dataset
+    else:
+        print("create parent")
+        dataset = Dataset.create(dataset_name, dataset_project)
+        return dataset
 
-    print('test')
 
-    return dataset
+def _get_last_child_dataset(dataset_project, dataset_name):
+    datasets_dict = Dataset.list_datasets(
+        dataset_project=dataset_project, partial_name=dataset_name, only_completed=False
+    )
+    if datasets_dict:
+        datasets_dict_latest = datasets_dict[-1]
+        return Dataset.get(dataset_id=datasets_dict_latest["id"])
 
 
 ## shard dataset and save
@@ -97,9 +117,15 @@ print(clean_dataset.features)
 
 train, validate, test = np.split(result.sample(frac=1, random_state=42), [int(.6*len(result)), int(.8*len(result))])
 
-dataset = Dataset.create(
-    dataset_project='datasets/c4', dataset_name="c4_raw_clean"
+dataset = create_dataset(
+    dataset_project=DATASET_PROJECT,
+    dataset_name=DATASET_NAME,
 )
+
+# dataset = Dataset.create(
+#     dataset_project='datasets/c4', dataset_name="c4_raw_clean"
+# )
+
 train.to_parquet("train.parquet", engine='fastparquet')
 validate.to_parquet("validate.parquet", engine='fastparquet')
 test.to_parquet("test.parquet", engine='fastparquet')
@@ -107,42 +133,6 @@ test.to_parquet("test.parquet", engine='fastparquet')
 dataset.add_files("train.parquet")
 dataset.add_files("validate.parquet")
 dataset.add_files("test.parquet")
-# dataset.add_files("dataset_dataframe.csv.gz")
 dataset.upload()
 dataset.finalize()
 
-
-dataset = Dataset.create(
-    dataset_project='datasets/c4', dataset_name="c4_raw_clean"
-)
-result.to_parquet("c4_dataset_sample.parquet", engine='fastparquet')
-# df.to_csv("dataset_dataframe.csv.gz", compression="gzip")
-dataset.add_files("c4_dataset_sample.parquet")
-# dataset.add_files("dataset_dataframe.csv.gz")
-dataset.upload()
-dataset.finalize()
-
-
-## save dataset shards as Dataset
-# clean_dataset_name = "_".join([clean_dataset_name, clean_dataset_variant_name, clean_dataset_split])
-# dataset = Dataset.create(
-#     dataset_project=PROJECT_NAME,
-#     dataset_name=clean_dataset_name,
-#     dataset_tags=["huggingface", clean_dataset_name],
-# )
-# dataset.add_files(cleaned_shard_path)
-# dataset.upload()
-# dataset.finalize()
-
-# unclean_dataset_name = "_".join([unclean_dataset_name, unclean_dataset_variant_name, unclean_dataset_split])
-# dataset = Dataset.create(
-#     dataset_project=PROJECT_NAME,
-#     dataset_name=unclean_dataset_name,
-#     dataset_tags=["huggingface", unclean_dataset_name],
-# )
-# dataset.add_files(uncleaned_shard_path)
-# dataset.upload()
-# dataset.finalize()
-
-# # we are done
-# print("Done")
