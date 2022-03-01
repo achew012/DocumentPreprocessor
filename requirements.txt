@@ -29,3 +29,14 @@ pathlib2
 git+https://github.com/huggingface/datasets.git
 fastparquet
 pytorch-lightning==1.4.0
+
+#Elwin
+transformers>=4.6.0,<5.0.0
+tokenizers>=0.10.3
+tqdm
+torchvision
+numpy
+scikit-learn
+scipy
+nltk
+huggingface-hub

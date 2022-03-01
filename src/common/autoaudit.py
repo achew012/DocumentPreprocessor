@@ -59,6 +59,7 @@ class AutoAudit:
 if __name__ == "__main__":
     pq_table = pq.read_table(dataset_folder)
     pq_table = pq_table.to_pandas()
+    print(pq_table.head())
 
     # text_1 = 'Hello I am a boasfasf. I live in many place'
     # text_2 = 'Hello, I am a boy. I live in multiple places'
