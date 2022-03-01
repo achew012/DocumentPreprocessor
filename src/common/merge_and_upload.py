@@ -8,7 +8,7 @@ import numpy as np
 
 from check_parent_dataset import create_dataset
 
-def merge_clean_unclean(clean:pd.Dataframe,unclean:pd.Dataframe):
+def merge_clean_unclean(clean:pd.DataFrame(),unclean:pd.DataFrame()):
     result = pd.merge(clean,unclean,how="inner",left_on='url',right_on='url',suffixes=("", "_y"))
     try:
         result = result.drop(['timestamp_y'], axis = 1)

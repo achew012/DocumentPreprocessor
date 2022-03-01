@@ -9,7 +9,7 @@ from merge_and_upload import *
 PROJECT_NAME = "incubation c4"
 TASK_NAME = "dataset_store_c4_dataset"
 DATASET_PROJECT = "datasets/c4"
-DATASET_NAME = "c4_raw_clean"
+DATASET_NAME = "c4_test_refractored"
 
 task = Task.init(project_name=PROJECT_NAME, task_name=TASK_NAME,output_uri='s3://experiment-logging')
 task.set_base_docker(
