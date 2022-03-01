@@ -11,8 +11,6 @@ from common.utils import *
 # from data.data import PreprocessingDataset
 # from metrics.eval import eval_ceaf
 
-import ipdb
-
 
 class LongformerDenoiser(pl.LightningModule):
     """Pytorch Lightning module. It wraps up the model, data loading and training code"""
@@ -82,23 +80,27 @@ class LongformerDenoiser(pl.LightningModule):
 
     def forward(self, **batch):
 
-        src_input_ids, src_attention_mask, tgt_input_ids, tgt_attention_mask = (
-            batch["src_input_ids"],
-            batch["src_attention_mask"],
-            batch["tgt_input_ids"],
-            batch["tgt_attention_mask"],
-        )
+        src_input_ids = batch.pop("src_input_ids", None)
+        src_attention_mask = batch.pop("src_attention_mask", None)
+        tgt_input_ids = batch.pop("tgt_input_ids", None)
+        tgt_attention_mask = batch.pop("tgt_attention_mask", None)
 
-        outputs = self.base_model(
-            input_ids=src_input_ids,
-            attention_mask=src_attention_mask,  # mask padding tokens
-            global_attention_mask=self._set_global_attention_mask(
-                src_input_ids),
-            # decoder_input_ids=question_ids,
-            labels=tgt_input_ids,
-            output_hidden_states=True,
-        )
-
+        if tgt_input_ids != None:
+            outputs = self.base_model(
+                input_ids=src_input_ids,
+                attention_mask=src_attention_mask,  # mask padding tokens
+                global_attention_mask=self._set_global_attention_mask(src_input_ids),
+                # decoder_input_ids=question_ids,
+                labels=tgt_input_ids,
+                output_hidden_states=True,
+            )
+        else:
+            outputs = self.base_model(
+                input_ids=src_input_ids,
+                attention_mask=src_attention_mask,  # mask padding tokens
+                global_attention_mask=self._set_global_attention_mask(src_input_ids),
+                output_hidden_states=True,
+            )
         return outputs
 
     def training_step(self, batch, batch_nb):
@@ -112,32 +114,6 @@ class LongformerDenoiser(pl.LightningModule):
             total_loss.append(batch["loss"])
         self.log("train_loss", sum(total_loss) / len(total_loss))
 
-    # def _get_dataloader(self, split_name):
-    #     """Get training and validation dataloaders"""
-
-    #     if self.cfg.debug:
-    #         dataset_split = dataset_split[:10]
-
-    #     dataset = PreprocessingDataset(dataset=dataset_split,
-    #                                    tokenizer=self.tokenizer, cfg=self.cfg)
-
-    #     if split_name in ["dev", "test"]:
-    #         return DataLoader(dataset, batch_size=self.cfg.eval_batch_size, num_workers=self.cfg.num_workers, collate_fn=QGDataset.collate_fn)
-    #     else:
-    #         return DataLoader(dataset, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers, collate_fn=QGDataset.collate_fn)
-
-    # def train_dataloader(self):
-    #     print("Loading train dataset")
-    #     return self._get_dataloader('train')
-
-    # def val_dataloader(self):
-    #     print("Loading dev dataset")
-    #     return self._get_dataloader('dev')
-
-    # def test_dataloader(self):
-    #     print("Loading test dataset")
-    #     return self._get_dataloader('test')
-
     def generate(self, **batch):
         return self.base_model.generate(
             **batch,
@@ -148,21 +124,32 @@ class LongformerDenoiser(pl.LightningModule):
         )
 
     def _evaluation_step(self, split, batch, batch_nb):
-        if self.cfg.eval_batch_size == 1:
-            batch["input_ids"], batch["attention_mask"], batch["question_ids"] = (
-                batch["input_ids"].unsqueeze(0),
-                batch["attention_mask"].unsqueeze(0),
-                batch["question_ids"].unsqueeze(0),
-            )
+        # if self.cfg.eval_batch_size == 1:
+        #     batch["input_ids"], batch["attention_mask"], batch["question_ids"] = (
+        #         batch["input_ids"].unsqueeze(0),
+        #         batch["attention_mask"].unsqueeze(0),
+        #         batch["question_ids"].unsqueeze(0),
+        #     )
 
-        loss = self.forward(**batch).loss
-        question_ids = batch.pop("question_ids", None)
-        outputs = self.generate(**batch)
+        # src_input_ids, src_attention_mask, tgt_input_ids, tgt_attention_mask = (
+        #     batch["src_input_ids"],
+        #     batch["src_attention_mask"],
+        #     batch["tgt_input_ids"],
+        #     batch["tgt_attention_mask"],
+        # )
+
+        src_input_ids = batch.pop("src_input_ids", None)
+        src_attention_mask = batch.pop("src_attention_mask", None)
+        tgt_input_ids = batch.pop("tgt_input_ids", None)
+        tgt_attention_mask = batch.pop("tgt_attention_mask", None)
+
+        outputs = self.generate(
+            **{"input_ids": src_input_ids, "attention_mask": src_attention_mask}
+        )
         generated_outcome = self.tokenizer.batch_decode(
             outputs["sequences"], skip_special_tokens=True
         )
-        gold = self.tokenizer.batch_decode(
-            question_ids, skip_special_tokens=True)
+        gold = self.tokenizer.batch_decode(tgt_input_ids, skip_special_tokens=True)
 
         # results = self.bleu_metric.compute(
         #     predictions=generated_outcome, references=gold)
@@ -175,30 +162,23 @@ class LongformerDenoiser(pl.LightningModule):
         #     title="batch_rouge_{}".format(split), series=split, value=results["rouge1"], iteration=batch_nb
         # )
 
-        return loss, generated_outcome, results
+        return generated_outcome, results
 
     #################################################################################
 
     def validation_step(self, batch, batch_nb):
-        batch_loss, batch_generated_text, batch_rouge = self._evaluation_step(
+        batch_generated_text, batch_rouge = self._evaluation_step(
             "val", batch, batch_nb
         )
         return {
             "results": batch_rouge,
-            "loss": batch_loss,
             "generated_text": batch_generated_text,
         }
 
     def validation_epoch_end(self, outputs):
-        total_loss = []
         total_rouge = []
         for batch in outputs:
-            total_loss.append(batch["loss"])
             total_rouge.append(batch["results"]["rouge1"].mid.fmeasure)
-        self.log(
-            "val_loss",
-            sum(total_loss) / len(total_loss),
-        )
         self.log(
             "average_val_rouge1",
             sum(total_rouge) / len(total_rouge),

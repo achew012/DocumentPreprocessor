@@ -69,8 +69,8 @@ def train(cfg, task) -> LongformerDenoiser:
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath="./",
         filename="best_model",
-        monitor="val_loss",
-        mode="min",
+        monitor="average_val_rouge1",
+        mode="max",
         save_top_k=1,
         save_weights_only=True,
         period=5,
@@ -119,15 +119,14 @@ def hydra_main(cfg) -> float:
     cfg_dict = OmegaConf.to_container(cfg, resolve=True)
     task.connect(cfg_dict)
     task.set_base_docker("nvidia/cuda:11.4.0-runtime-ubuntu20.04")
-    task.execute_remotely(queue_name="compute2", exit_process=True)
+    task.execute_remotely(queue_name="compute", exit_process=True)
 
     if cfg.train:
         model = train(cfg, task)
 
     if cfg.test:
         if cfg.trained_model_path:
-            trained_model_path = StorageManager.get_local_copy(
-                cfg.trained_model_path)
+            trained_model_path = StorageManager.get_local_copy(cfg.trained_model_path)
             model = LongformerDenoiser.load_from_checkpoint(
                 trained_model_path, cfg=cfg, task=task
             )

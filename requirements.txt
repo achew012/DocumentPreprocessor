@@ -40,3 +40,6 @@ scikit-learn
 scipy
 nltk
 huggingface-hub
+pytorch-lightning==1.1.2
+torch==1.10.0
+ipdb

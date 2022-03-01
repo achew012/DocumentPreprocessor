@@ -1,7 +1,6 @@
 import torch
 from torch.utils.data import Dataset
 import pandas as pd
-import ipdb
 
 
 class PreprocessingDataset(Dataset):
@@ -22,14 +21,24 @@ class PreprocessingDataset(Dataset):
         row = self.dataset.iloc[idx]
 
         source = self.tokenizer(
-            row["raw"], max_length=self.cfg.max_input_len, padding="max_length", truncation=True, return_tensors="pt")
-        item["src_input_ids"] = source["input_ids"]
-        item["src_attention_mask"] = source["attention_mask"]
+            row["raw"],
+            max_length=self.cfg.max_input_len,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        )
+        item["src_input_ids"] = source["input_ids"].squeeze()
+        item["src_attention_mask"] = source["attention_mask"].squeeze()
 
         target = self.tokenizer(
-            row["clean"], max_length=self.cfg.max_output_len, padding="max_length", truncation=True, return_tensors="pt")
-        item["tgt_input_ids"] = target["input_ids"]
-        item["tgt_attention_mask"] = target["attention_mask"]
+            row["clean"],
+            max_length=self.cfg.max_output_len,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        )
+        item["tgt_input_ids"] = target["input_ids"].squeeze()
+        item["tgt_attention_mask"] = target["attention_mask"].squeeze()
 
         return item
 
@@ -41,11 +50,9 @@ class PreprocessingDataset(Dataset):
         """
 
         src_input_ids = torch.stack([ex["src_input_ids"] for ex in batch])
-        src_attention_mask = torch.stack(
-            [ex["src_attention_mask"] for ex in batch])
+        src_attention_mask = torch.stack([ex["src_attention_mask"] for ex in batch])
         tgt_input_ids = torch.stack([ex["tgt_input_ids"] for ex in batch])
-        tgt_attention_mask = torch.stack(
-            [ex["tgt_attention_mask"] for ex in batch])
+        tgt_attention_mask = torch.stack([ex["tgt_attention_mask"] for ex in batch])
 
         return {
             "src_input_ids": src_input_ids,
