@@ -10,8 +10,8 @@ limit_train_batches: 0.002
 max_input_len: 1024
 max_output_len: 1024
 val_every: 0.33
-batch_size: 4
-eval_batch_size: 4
+batch_size: 1
+eval_batch_size: 1
 grad_accum: 2
 fp16: False
 grad_ckpt: True

@@ -9,7 +9,10 @@ class PreprocessingDataset(Dataset):
     def __init__(self, dataset_path, tokenizer, cfg):
         self.cfg = cfg
         self.tokenizer = tokenizer
-        self.dataset = pd.read_parquet(dataset_path, engine="fastparquet")
+        if cfg.debug:
+            self.dataset = pd.read_parquet(dataset_path, engine="fastparquet")[:10]
+        else:
+            self.dataset = pd.read_parquet(dataset_path, engine="fastparquet")
 
     def __len__(self):
         """Returns length of the dataset"""

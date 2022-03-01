@@ -197,9 +197,12 @@ class LongformerDenoiser(pl.LightningModule):
     def test_epoch_end(self, outputs):
         total_loss = []
         total_rouge = []
+        generated_text = []
         for batch in outputs:
             total_loss.append(batch["loss"])
             total_rouge.append(batch["results"]["rouge1"].mid.fmeasure)
+            generated_text.append(batch["generated_text"])
+
         self.log("test_loss", sum(total_loss) / len(total_loss))
         self.log("average_test_rouge1", sum(total_rouge) / len(total_rouge))
 

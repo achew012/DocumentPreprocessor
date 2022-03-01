@@ -11,7 +11,7 @@ from transformers.models.led import LEDTokenizer
 from data.data import PreprocessingDataset
 from models.model import LongformerDenoiser
 
-
+Task.force_requirements_env_freeze(force=True, requirements_file="requirements.txt")
 Task.add_requirements("rouge_score")
 Task.add_requirements("nltk")
 
@@ -118,8 +118,8 @@ def hydra_main(cfg) -> float:
 
     cfg_dict = OmegaConf.to_container(cfg, resolve=True)
     task.connect(cfg_dict)
-    task.set_base_docker("nvidia/cuda:11.4.0-runtime-ubuntu20.04")
-    task.execute_remotely(queue_name="compute", exit_process=True)
+    # task.set_base_docker("nvidia/cuda:11.4.0-runtime-ubuntu20.04")
+    # task.execute_remotely(queue_name="compute", exit_process=True)
 
     if cfg.train:
         model = train(cfg, task)

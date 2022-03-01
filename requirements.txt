@@ -16,21 +16,15 @@ lxml
 sentence-transformers
 sentencepiece
 protobuf
-spacy
-datasets
 tld
 numba==0.53
-# clearml==1.1.6
-
 
 # backwards compatibility
 pathlib2
 
 git+https://github.com/huggingface/datasets.git
 fastparquet
-pytorch-lightning==1.4.0
-
-#Elwin
+boto3
 transformers>=4.6.0,<5.0.0
 tokenizers>=0.10.3
 tqdm
@@ -45,3 +39,8 @@ huggingface-hub
 pytorch-lightning==1.1.2
 torch==1.10.0
 ipdb
+hydra-core
+clearml
+jsonlines
+nltk
+rouge_score
