@@ -39,6 +39,8 @@ numpy
 scikit-learn
 scipy
 nltk
+spellchecker
+spacy==3.2.0
 huggingface-hub
 pytorch-lightning==1.1.2
 torch==1.10.0
