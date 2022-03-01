@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 from check_parent_dataset import create_dataset
-from merge_and_upload import *
+from utils import *
 
 PROJECT_NAME = "incubation c4"
 TASK_NAME = "dataset_store_c4_dataset"
