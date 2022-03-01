@@ -20,24 +20,10 @@ class LongformerDenoiser(pl.LightningModule):
     def __init__(self, cfg, task):
         """Loads the model, the tokenizer and the metric."""
         super().__init__()
-        self.save_hyperparameters()
+        # self.save_hyperparameters()
         self.cfg = cfg
         self.task = task
         self.clearml_logger = self.task.get_logger()
-
-        # train_data_files = {"train": "en/c4-train.00000-of-01024.json.gz"}
-        # self.c4_train = load_dataset(
-        #     "allenai/c4", data_files=train_data_files, split="train")
-        # val_data_files = {"validation": "en/c4-validation.*.json.gz"}
-        # self.c4_validation = load_dataset(
-        #     "allenai/c4", data_files=val_data_files, split="validation[:10%]")
-        # self.c4_test = load_dataset(
-        #     "allenai/c4", data_files=val_data_files, split="validation[10%:20%]")
-
-        # if self.cfg.clearml_dataset_project_name and self.cfg.clearml_dataset_name:
-        #     clearml_data_object = ClearML_Dataset.get(dataset_name=self.cfg.clearml_dataset_name, dataset_project=self.cfg.clearml_dataset_project_name,
-        #                                               dataset_tags=list(self.cfg.clearml_dataset_tags), only_published=True)
-        #     self.dataset_path = clearml_data_object.get_local_copy()
 
         print("CUDA available: ", torch.cuda.is_available())
 
@@ -96,18 +82,20 @@ class LongformerDenoiser(pl.LightningModule):
 
     def forward(self, **batch):
 
-        input_ids, attention_mask, question_ids = (
-            batch["input_ids"],
-            batch["attention_mask"],
-            batch["question_ids"],
+        src_input_ids, src_attention_mask, tgt_input_ids, tgt_attention_mask = (
+            batch["src_input_ids"],
+            batch["src_attention_mask"],
+            batch["tgt_input_ids"],
+            batch["tgt_attention_mask"],
         )
 
         outputs = self.base_model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,  # mask padding tokens
-            global_attention_mask=self._set_global_attention_mask(input_ids),
+            input_ids=src_input_ids,
+            attention_mask=src_attention_mask,  # mask padding tokens
+            global_attention_mask=self._set_global_attention_mask(
+                src_input_ids),
             # decoder_input_ids=question_ids,
-            labels=question_ids,
+            labels=tgt_input_ids,
             output_hidden_states=True,
         )
 
@@ -115,16 +103,7 @@ class LongformerDenoiser(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         """Call the forward pass then return loss"""
-        if self.cfg.batch_size == 1:
-            batch["input_ids"], batch["attention_mask"], batch["question_ids"] = (
-                batch["input_ids"].unsqueeze(0),
-                batch["attention_mask"].unsqueeze(0),
-                batch["question_ids"].unsqueeze(0),
-            )
-            outputs = self.forward(**batch)
-        else:
-            outputs = self.forward(**batch)
-
+        outputs = self(**batch)
         return {"loss": outputs.loss}
 
     def training_epoch_end(self, outputs):
@@ -182,7 +161,8 @@ class LongformerDenoiser(pl.LightningModule):
         generated_outcome = self.tokenizer.batch_decode(
             outputs["sequences"], skip_special_tokens=True
         )
-        gold = self.tokenizer.batch_decode(question_ids, skip_special_tokens=True)
+        gold = self.tokenizer.batch_decode(
+            question_ids, skip_special_tokens=True)
 
         # results = self.bleu_metric.compute(
         #     predictions=generated_outcome, references=gold)

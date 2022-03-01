@@ -18,6 +18,14 @@ Task.add_requirements("nltk")
 
 def get_dataloader(split_name, cfg):
     """Get training and validation dataloaders"""
+    # train_data_files = {"train": "en/c4-train.00000-of-01024.json.gz"}
+    # self.c4_train = load_dataset(
+    #     "allenai/c4", data_files=train_data_files, split="train")
+    # val_data_files = {"validation": "en/c4-validation.*.json.gz"}
+    # self.c4_validation = load_dataset(
+    #     "allenai/c4", data_files=val_data_files, split="validation[:10%]")
+    # self.c4_test = load_dataset(
+    #     "allenai/c4", data_files=val_data_files, split="validation[10%:20%]")
 
     # if cfg.clearml_dataset_project_name and cfg.clearml_dataset_name:
     clearml_data_object = ClearML_Dataset.get(
@@ -41,7 +49,7 @@ def get_dataloader(split_name, cfg):
         cfg=cfg,
     )
 
-    if split_name in ["dev", "test"]:
+    if split_name in ["validate", "test"]:
         return DataLoader(
             dataset,
             batch_size=cfg.eval_batch_size,
@@ -65,7 +73,7 @@ def train(cfg, task) -> LongformerDenoiser:
         mode="min",
         save_top_k=1,
         save_weights_only=True,
-        every_n_epochs=5,
+        period=5,
     )
 
     train_loader = get_dataloader("train", cfg)
@@ -78,6 +86,7 @@ def train(cfg, task) -> LongformerDenoiser:
         accumulate_grad_batches=cfg.grad_accum,
         callbacks=[checkpoint_callback],
     )
+
     trainer.fit(model, train_loader, val_loader)
     return model
 
@@ -109,15 +118,16 @@ def hydra_main(cfg) -> float:
 
     cfg_dict = OmegaConf.to_container(cfg, resolve=True)
     task.connect(cfg_dict)
-    # task.set_base_docker("nvidia/cuda:11.4.0-runtime-ubuntu20.04")
-    # task.execute_remotely(queue_name="compute2", exit_process=True)
+    task.set_base_docker("nvidia/cuda:11.4.0-runtime-ubuntu20.04")
+    task.execute_remotely(queue_name="compute2", exit_process=True)
 
     if cfg.train:
         model = train(cfg, task)
 
     if cfg.test:
         if cfg.trained_model_path:
-            trained_model_path = StorageManager.get_local_copy(cfg.trained_model_path)
+            trained_model_path = StorageManager.get_local_copy(
+                cfg.trained_model_path)
             model = LongformerDenoiser.load_from_checkpoint(
                 trained_model_path, cfg=cfg, task=task
             )

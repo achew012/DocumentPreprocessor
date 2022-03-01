@@ -20,7 +20,7 @@ spacy
 datasets
 tld
 numba==0.53
-clearml==1.1.6
+# clearml==1.1.6
 
 
 # backwards compatibility
@@ -28,3 +28,4 @@ pathlib2
 
 git+https://github.com/huggingface/datasets.git
 fastparquet
+pytorch-lightning==1.4.0
