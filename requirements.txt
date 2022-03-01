@@ -39,4 +39,6 @@ numpy
 scikit-learn
 scipy
 nltk
+spellchecker
+spacy==3.2.0
 huggingface-hub
