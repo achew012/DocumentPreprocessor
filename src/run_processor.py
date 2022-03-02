@@ -1,3 +1,4 @@
+from xmlrpc.client import Boolean
 import hydra
 from omegaconf import OmegaConf
 import os
@@ -11,11 +12,22 @@ from transformers.models.led import LEDTokenizer
 from data.data import PreprocessingDataset
 from models.model import LongformerDenoiser
 
-Task.force_requirements_env_freeze(
-    force=True, requirements_file="requirements.txt")
+Task.force_requirements_env_freeze(force=True, requirements_file="requirements.txt")
 # Task.add_requirements("rouge_score")
 # Task.add_requirements("nltk")
 Task.add_requirements("git+https://github.com/huggingface/datasets.git")
+
+task = Task.init(
+    project_name="DocumentProcessing",
+    task_name="LED-Denoiser-train",
+    output_uri="s3://experiment-logging/storage/",
+)
+# cfg_dict = OmegaConf.to_container(cfg, resolve=True)
+task.set_parameter(
+    "Hydra/_allow_omegaconf_edit_", True, description=None, value_type=Boolean
+)
+task.set_base_docker("nvidia/cuda:11.4.0-runtime-ubuntu20.04")
+task.execute_remotely(queue_name="compute", exit_process=True)
 
 
 def get_dataloader(split_name, cfg):
@@ -80,7 +92,7 @@ def train(cfg, task) -> LongformerDenoiser:
 
     model = LongformerDenoiser(cfg, task)
     trainer = pl.Trainer(
-        gpus=1,
+        gpus=cfg.gpus,
         max_epochs=cfg.num_epochs,
         accumulate_grad_batches=cfg.grad_accum,
         callbacks=[checkpoint_callback],
@@ -92,7 +104,7 @@ def train(cfg, task) -> LongformerDenoiser:
 
 def test(cfg, model) -> list:
     test_loader = get_dataloader("test", cfg)
-    trainer = pl.Trainer(gpus=1, max_epochs=cfg.num_epochs)
+    trainer = pl.Trainer(gpus=cfg.gpus, max_epochs=cfg.num_epochs)
     results = trainer.test(model, test_loader)
     return results
 
@@ -102,36 +114,22 @@ def hydra_main(cfg) -> float:
 
     print("Detected config file, initiating task... {}".format(cfg))
 
-    if cfg.train:
-        task = Task.init(
-            project_name="DocumentProcessing",
-            task_name="LED-Denoiser-train",
-            output_uri="s3://experiment-logging/storage/",
-        )
+    if task:
+        if cfg.train:
+            model = train(cfg, task)
+
+        if cfg.test:
+            if cfg.trained_model_path:
+                trained_model_path = StorageManager.get_local_copy(
+                    cfg.trained_model_path
+                )
+                model = LongformerDenoiser.load_from_checkpoint(
+                    trained_model_path, cfg=cfg, task=task
+                )
+
+            results = test(cfg, model)
     else:
-        task = Task.init(
-            project_name="DocumentProcessing",
-            task_name="LED-Denoiser-test",
-            output_uri="s3://experiment-logging/storage/",
-        )
-
-    cfg_dict = OmegaConf.to_container(cfg, resolve=True)
-    task.connect(cfg_dict)
-    task.set_base_docker("nvidia/cuda:11.4.0-runtime-ubuntu20.04")
-    task.execute_remotely(queue_name="compute", exit_process=True)
-
-    if cfg.train:
-        model = train(cfg, task)
-
-    if cfg.test:
-        if cfg.trained_model_path:
-            trained_model_path = StorageManager.get_local_copy(
-                cfg.trained_model_path)
-            model = LongformerDenoiser.load_from_checkpoint(
-                trained_model_path, cfg=cfg, task=task
-            )
-
-        results = test(cfg, model)
+        print("No task found. Please pass in a task mate.")
 
 
 if __name__ == "__main__":

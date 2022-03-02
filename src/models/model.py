@@ -29,6 +29,8 @@ class LongformerDenoiser(pl.LightningModule):
 
         # Load and update config then load a pretrained LEDForConditionalGeneration
         self.base_model_config = LEDConfig.from_pretrained(self.cfg.model_name)
+        # self.base_model_config.max_encoder_position_embeddings = self.cfg.max_input_len
+        # self.base_model_config.max_decoder_position_embeddings = self.cfg.max_output_len
 
         # Load tokenizer and metric
         self.tokenizer = LEDTokenizer.from_pretrained(
@@ -107,6 +109,7 @@ class LongformerDenoiser(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         """Call the forward pass then return loss"""
+
         outputs = self(**batch)
         return {"loss": outputs.loss}
 
@@ -202,9 +205,11 @@ class LongformerDenoiser(pl.LightningModule):
             total_rouge.append(batch["results"]["rouge1"].mid.fmeasure)
             generated_text.append(batch["generated_text"])
 
-        pred_df = pd.DataFrame(generated_text, columns=["predictions"])
-        pred_df.to_parquet(self.add_modulecfg.prediction_filename, engine="fastparquet")
-        self.task.upload_artifact("generated_text", self.cfg.prediction_filename)
+        pred_df = pd.DataFrame(generated_text)  # , columns=["predictions"])
+        # pred_df.to_parquet(self.cfg.prediction_filename, engine="fastparquet")
+        self.task.upload_artifact(
+            "generated_text", pred_df
+        )  # self.cfg.prediction_filename
         self.log("average_test_rouge1", sum(total_rouge) / len(total_rouge))
 
     def configure_optimizers(self):
