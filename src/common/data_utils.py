@@ -6,7 +6,7 @@ import numpy as np
 
 from datasets import load_dataset, load_from_disk, concatenate_datasets
 
-def merge_clean_unclean(clean:pd.DataFrame(),unclean:pd.DataFrame(),cfg):
+def merge_to_triples(clean:pd.DataFrame(),unclean:pd.DataFrame(),cfg):
     result = pd.merge(clean,unclean,how="inner",left_on=cfg.rel,right_on=cfg.rel,suffixes=("", "_y"))
     
     if cfg.rel is None:

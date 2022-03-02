@@ -23,8 +23,8 @@ def inference_main(cfg):
     task.connect(cfg_dict)
 
     if not cfg.local:
-        from .check_parent_dataset import create_dataset
         task.execute_remotely(queue_name='compute')
+        from src.common.check_parent_dataset import create_dataset
 
         dataset_dict = Dataset.list_datasets(
             dataset_project=cfg.remote_dataset_project, partial_name=cfg.remote_dataset_name, only_completed=False

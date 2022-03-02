@@ -27,9 +27,9 @@ dataset_project: datasets/c4
 inference_source: raw
 inference_rel: 
 inference_text_field: texts
-local: True
+local: False
 local_file: ../../../data/maritime_data_compiled.csv
 #if executed remotely please specify the project the dataset is located in, it's dataset name, and the name of the file to be used
-remote_dataset_project:
-remote_dataset_name:
-remote_dataset_file_name:
+remote_dataset_project: datasets/c4
+remote_dataset_name: maritime_raw
+remote_dataset_file_name: maritime_data_compiled.csv

@@ -43,7 +43,7 @@ def huggingface_main(cfg):
     from datasets import load_dataset
 
     from src.common.check_parent_dataset import create_dataset
-    from src.common.data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
+    from src.common.data_utils import merge_to_triples,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
 
     # from check_parent_dataset import create_dataset
     # from data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
@@ -77,7 +77,7 @@ def huggingface_main(cfg):
     print(unclean_df.info())
 
 
-    result = merge_clean_unclean(clean_df,unclean_df,cfg)
+    result = merge_to_triples(clean_df,unclean_df,cfg)
 
     #split dataset into train, validate, test
     train, validate, test = train_validate_test_split(result,cfg.train_split,cfg.validation_split)
