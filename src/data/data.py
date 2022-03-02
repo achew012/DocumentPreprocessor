@@ -9,8 +9,9 @@ class PreprocessingDataset(Dataset):
     def __init__(self, dataset_path, tokenizer, cfg):
         self.cfg = cfg
         self.tokenizer = tokenizer
-        if cfg.debug:
-            self.dataset = pd.read_parquet(dataset_path, engine="fastparquet")[:10]
+        if self.cfg.debug:
+            self.dataset = pd.read_parquet(
+                dataset_path, engine="fastparquet")[:10]
         else:
             self.dataset = pd.read_parquet(dataset_path, engine="fastparquet")
 
@@ -53,9 +54,11 @@ class PreprocessingDataset(Dataset):
         """
 
         src_input_ids = torch.stack([ex["src_input_ids"] for ex in batch])
-        src_attention_mask = torch.stack([ex["src_attention_mask"] for ex in batch])
+        src_attention_mask = torch.stack(
+            [ex["src_attention_mask"] for ex in batch])
         tgt_input_ids = torch.stack([ex["tgt_input_ids"] for ex in batch])
-        tgt_attention_mask = torch.stack([ex["tgt_attention_mask"] for ex in batch])
+        tgt_attention_mask = torch.stack(
+            [ex["tgt_attention_mask"] for ex in batch])
 
         return {
             "src_input_ids": src_input_ids,

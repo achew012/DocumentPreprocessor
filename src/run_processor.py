@@ -11,9 +11,11 @@ from transformers.models.led import LEDTokenizer
 from data.data import PreprocessingDataset
 from models.model import LongformerDenoiser
 
-# Task.force_requirements_env_freeze(force=True, requirements_file="requirements.txt")
-Task.add_requirements("rouge_score")
-Task.add_requirements("nltk")
+Task.force_requirements_env_freeze(
+    force=True, requirements_file="requirements.txt")
+# Task.add_requirements("rouge_score")
+# Task.add_requirements("nltk")
+Task.add_requirements("git+https://github.com/huggingface/datasets.git")
 
 
 def get_dataloader(split_name, cfg):
@@ -116,14 +118,15 @@ def hydra_main(cfg) -> float:
     cfg_dict = OmegaConf.to_container(cfg, resolve=True)
     task.connect(cfg_dict)
     task.set_base_docker("nvidia/cuda:11.4.0-runtime-ubuntu20.04")
-    task.execute_remotely(queue_name="compute2", exit_process=True)
+    task.execute_remotely(queue_name="compute", exit_process=True)
 
     if cfg.train:
         model = train(cfg, task)
 
     if cfg.test:
         if cfg.trained_model_path:
-            trained_model_path = StorageManager.get_local_copy(cfg.trained_model_path)
+            trained_model_path = StorageManager.get_local_copy(
+                cfg.trained_model_path)
             model = LongformerDenoiser.load_from_checkpoint(
                 trained_model_path, cfg=cfg, task=task
             )
