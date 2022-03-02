@@ -11,7 +11,7 @@ validation_split: .2
 clean_dataset_path: allenai/c4
 clean_dataset_name: c4
 clean_dataset_variant_name: en
-clean_dataset_split": train
+clean_dataset_split: train
 clean_data_files: en/c4-train.0000[0-1]-of-01024.json.gz
 unclean_dataset_path: allenai/c4
 unclean_dataset_name: c4

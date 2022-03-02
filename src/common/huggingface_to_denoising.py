@@ -27,8 +27,8 @@ def huggingface_main(cfg):
     task.connect(cfg_dict)
     task.execute_remotely(queue_name='compute')
 
-    from common.check_parent_dataset import create_dataset
-    from common.data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
+    from src.common.check_parent_dataset import create_dataset
+    from src.common.data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
 
     clean_dataset_path = cfg.clean_dataset_path
     clean_dataset_name = cfg.clean_dataset_name
