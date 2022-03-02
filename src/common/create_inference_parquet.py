@@ -54,6 +54,9 @@ def inference_main(cfg):
         from check_parent_dataset import create_dataset
         
         if cfg.local_file.endswith('.csv'):
+            print('\n')
+            print(os.getcwd())
+            print('\n')
             df = pd.read_csv(cfg.local_file) 
         elif cfg.local_file.endswith('.parquet'):
             df = pd.read_parquet(cfg.local_file,engine='fastparquet')
@@ -62,11 +65,11 @@ def inference_main(cfg):
 
 
     inference_df = pd.DataFrame()
-    inference_df[cfg.source] = df[cfg.text_field]
-    if cfg.rel is None:
+    inference_df[cfg.inference_source] = df[cfg.inference_text_field]
+    if cfg.inference_rel is None:
         inference_df['doc_id'] = inference_df.index
     else:
-        inference_df[cfg.rel] = df[cfg.rel]
+        inference_df[cfg.inference_rel] = df[cfg.inference_rel]
 
     dataset = create_dataset(
         dataset_project=cfg.dataset_project,
