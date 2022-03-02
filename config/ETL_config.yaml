@@ -1,0 +1,20 @@
+#triples args
+source: raw
+target: clean
+rel: url
+rename: {'text': 'clean', 'text_y': 'raw'}
+
+train_split: .6
+validation_split: .2
+
+#huggingface_to_denoising args
+clean_dataset_path: allenai/c4
+clean_dataset_name: c4
+clean_dataset_variant_name: en
+clean_dataset_split": train
+clean_data_files: en/c4-train.0000[0-1]-of-01024.json.gz
+unclean_dataset_path: allenai/c4
+unclean_dataset_name: c4
+unclean_dataset_variant_name : en.noclean
+unclean_dataset_split: train
+unclean_data_files: en.noclean/c4-train.0000[0-1]-of-07168.json.gz
