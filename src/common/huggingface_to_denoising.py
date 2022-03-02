@@ -1,13 +1,12 @@
 import os
 
-from clearml import Task, StorageManager, Logger, Dataset
+from clearml import Task
 import pandas as pd 
 import numpy as np
 import hydra
 from omegaconf import OmegaConf
 
 
-print(os.path.join("..", "..", "config"))
 @hydra.main(config_path=os.path.join("..", "..", "config"), config_name="ETL_config")
 
 def huggingface_main(cfg):
@@ -43,11 +42,11 @@ def huggingface_main(cfg):
     ################## dataset_store_c4_datasets #################
     from datasets import load_dataset
 
-    # from src.common.check_parent_dataset import create_dataset
-    # from src.common.data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
+    from src.common.check_parent_dataset import create_dataset
+    from src.common.data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
 
-    from check_parent_dataset import create_dataset
-    from data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
+    # from check_parent_dataset import create_dataset
+    # from data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
 
     print("Loading cleaned C4 dataset with params: ",clean_dataset_path,clean_dataset_variant_name,clean_data_files,clean_dataset_split)
 
