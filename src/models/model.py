@@ -4,6 +4,8 @@ import torch
 from datasets import load_metric, load_dataset
 from transformers.models.led import LEDConfig, LEDTokenizer, LEDForConditionalGeneration
 import pytorch_lightning as pl
+import pandas as pd
+
 # from clearml import StorageManager, Dataset as ClearML_Dataset
 from common.utils import *
 
@@ -89,8 +91,7 @@ class LongformerDenoiser(pl.LightningModule):
             outputs = self.base_model(
                 input_ids=src_input_ids,
                 attention_mask=src_attention_mask,  # mask padding tokens
-                global_attention_mask=self._set_global_attention_mask(
-                    src_input_ids),
+                global_attention_mask=self._set_global_attention_mask(src_input_ids),
                 # decoder_input_ids=question_ids,
                 labels=tgt_input_ids,
                 output_hidden_states=True,
@@ -99,8 +100,7 @@ class LongformerDenoiser(pl.LightningModule):
             outputs = self.base_model(
                 input_ids=src_input_ids,
                 attention_mask=src_attention_mask,  # mask padding tokens
-                global_attention_mask=self._set_global_attention_mask(
-                    src_input_ids),
+                global_attention_mask=self._set_global_attention_mask(src_input_ids),
                 output_hidden_states=True,
             )
         return outputs
@@ -151,8 +151,7 @@ class LongformerDenoiser(pl.LightningModule):
         generated_outcome = self.tokenizer.batch_decode(
             outputs["sequences"], skip_special_tokens=True
         )
-        gold = self.tokenizer.batch_decode(
-            tgt_input_ids, skip_special_tokens=True)
+        gold = self.tokenizer.batch_decode(tgt_input_ids, skip_special_tokens=True)
 
         # results = self.bleu_metric.compute(
         #     predictions=generated_outcome, references=gold)
@@ -203,7 +202,9 @@ class LongformerDenoiser(pl.LightningModule):
             total_rouge.append(batch["results"]["rouge1"].mid.fmeasure)
             generated_text.append(batch["generated_text"])
 
-        self.task.upload_artifact("generated_text", generated_text)
+        pred_df = pd.DataFrame(generated_text, columns=["predictions"])
+        pred_df.to_parquet(self.add_modulecfg.prediction_filename, engine="fastparquet")
+        self.task.upload_artifact("generated_text", self.cfg.prediction_filename)
         self.log("average_test_rouge1", sum(total_rouge) / len(total_rouge))
 
     def configure_optimizers(self):

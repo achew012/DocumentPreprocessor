@@ -1,17 +1,19 @@
-from clearml import PipelineController
+from clearml import PipelineController, Task
 
 PIPELINE_PROJECT_NAME = "TextPreprocessing"
 PIPELINE_NAME = "raw-denoiser-auditor-datasets"
 
 ETL_TASK_PROJECT_NAME = "datasets/c4"
 DENOISER_TASK_PROJECT_NAME = "DocumentProcessing"
+DENOISER_TASK_NAME = "LED-Denoiser-train"
+
 DATASET_AUDIT_PROJECT_NAME = "DataAudit"
 
 
 pipe = PipelineController(
     project=PIPELINE_PROJECT_NAME,
     name=PIPELINE_NAME,
-    version="0.1",
+    version="1.2",
     add_pipeline_tags=True,
 )
 pipe.set_default_execution_queue("compute")  # set to queue with GPU
@@ -28,10 +30,14 @@ pipe.set_default_execution_queue("compute")  # set to queue with GPU
 #     base_task_name="dataset_load_csv",
 # )
 
+denoiser_task = Task.get_task(
+    project_name=DENOISER_TASK_PROJECT_NAME,
+    task_name=DENOISER_TASK_NAME,
+    task_filter={"status": ["published"]},
+)
 pipe.add_step(
     name="denoiser",
-    base_task_project=DENOISER_TASK_PROJECT_NAME,
-    base_task_name="LED-Denoiser-train",
+    base_task_id=denoiser_task.id,
     parameter_override={
         # "General/clearml_dataset_project_name": ${dataset_etl.artifacts.data.url}
         "General/clearml_dataset_project_name": ETL_TASK_PROJECT_NAME,
@@ -39,14 +45,14 @@ pipe.add_step(
     },
 )
 
-pipe.add_step(
-    name="dataset_audit",
-    base_task_project=DATASET_AUDIT_PROJECT_NAME,
-    base_task_name="dataset_audit",
-    parameter_override={
-        "General/source_path": ${denoiser.artifacts.data.url},
-    },
-)
+# pipe.add_step(
+#     name="dataset_audit",
+#     base_task_project=DATASET_AUDIT_PROJECT_NAME,
+#     base_task_name="dataset_audit",
+#     parameter_override={
+#         "General/prediction_path": ${denoiser.artifacts.generated_text.url},
+#     },
+# )
 
 # Starting the pipeline (in the background)
 pipe.start()
