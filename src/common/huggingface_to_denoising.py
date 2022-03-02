@@ -25,7 +25,7 @@ def huggingface_main(cfg):
 
     cfg_dict = OmegaConf.to_container(cfg, resolve=True)
     task.connect(cfg_dict)
-    task.execute_remotely(queue_name='compute')
+    # task.execute_remotely(queue_name='compute')
 
     clean_dataset_path = cfg.clean_dataset_path
     clean_dataset_name = cfg.clean_dataset_name
@@ -43,22 +43,22 @@ def huggingface_main(cfg):
     ################## dataset_store_c4_datasets #################
     from datasets import load_dataset
 
-    from src.common.check_parent_dataset import create_dataset
-    from src.common.data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
+    # from src.common.check_parent_dataset import create_dataset
+    # from src.common.data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
 
-    # from check_parent_dataset import create_dataset
-    # from data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
+    from check_parent_dataset import create_dataset
+    from data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
 
     print("Loading cleaned C4 dataset with params: ",clean_dataset_path,clean_dataset_variant_name,clean_data_files,clean_dataset_split)
 
     cleaned_dataset = load_dataset(
-        path="allenai/c4",name="en",data_files="en/c4-train.0000[0-1]-of-01024.json.gz",split="train"
+        path=clean_dataset_path,name=clean_dataset_variant_name,data_files=clean_data_files,split=clean_dataset_split
     )
 
     print("Loading uncleaned C4 dataset")
 
     uncleaned_dataset = load_dataset(
-        path="allenai/c4",name="en.noclean",data_files="en.noclean/c4-train.0000[0-1]-of-07168.json.gz",split="train"
+        path=unclean_dataset_path,name=unclean_dataset_variant_name,data_files=unclean_data_files,split=unclean_dataset_split
     )
 
     print("Number of samples in {} dataset".format(cfg.clean_dataset_name), cleaned_dataset.num_rows)
