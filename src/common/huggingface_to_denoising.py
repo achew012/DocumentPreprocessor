@@ -27,12 +27,6 @@ def huggingface_main(cfg):
     task.connect(cfg_dict)
     task.execute_remotely(queue_name='compute')
 
-    from src.common.check_parent_dataset import create_dataset
-    from src.common.data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
-
-    # from check_parent_dataset import create_dataset
-    # from data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
-
     clean_dataset_path = cfg.clean_dataset_path
     clean_dataset_name = cfg.clean_dataset_name
     clean_dataset_variant_name = cfg.clean_dataset_variant_name
@@ -48,6 +42,12 @@ def huggingface_main(cfg):
 
     ################## dataset_store_c4_datasets #################
     from datasets import load_dataset
+
+    from src.common.check_parent_dataset import create_dataset
+    from src.common.data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
+
+    # from check_parent_dataset import create_dataset
+    # from data_utils import merge_clean_unclean,dataset_to_shard,shard_to_dataset,train_validate_test_split,parquet_and_upload
 
     print("Loading cleaned C4 dataset with params: ",clean_dataset_path,clean_dataset_variant_name,clean_data_files,clean_dataset_split)
 
