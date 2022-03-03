@@ -1,33 +1,40 @@
-from xmlrpc.client import Boolean
+from clearml import Task, StorageManager, Dataset as ClearML_Dataset
 import hydra
-from omegaconf import OmegaConf
-import os
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 import pandas as pd
-from clearml import Task, StorageManager, Dataset as ClearML_Dataset
 from torch.utils.data import DataLoader
-
+from typing import Dict, Any
+import ast
+from omegaconf import OmegaConf
+import os
 from transformers.models.led import LEDTokenizer
 from data.data import PreprocessingDataset
 from models.model import LongformerDenoiser
 
-Task.force_requirements_env_freeze(force=True, requirements_file="requirements.txt")
+Task.force_requirements_env_freeze(
+    force=True, requirements_file="requirements.txt")
 # Task.add_requirements("rouge_score")
 # Task.add_requirements("nltk")
 Task.add_requirements("git+https://github.com/huggingface/datasets.git")
 
-task = Task.init(
-    project_name="DocumentProcessing",
-    task_name="LED-Denoiser-train",
-    output_uri="s3://experiment-logging/storage/",
-)
-# cfg_dict = OmegaConf.to_container(cfg, resolve=True)
-task.set_parameter(
-    "Hydra/_allow_omegaconf_edit_", True, description=None, value_type=Boolean
-)
-task.set_base_docker("nvidia/cuda:11.4.0-runtime-ubuntu20.04")
-task.execute_remotely(queue_name="compute", exit_process=True)
+
+def get_clearml_params(task: Task) -> Dict[str, Any]:
+    '''
+    returns task params as a dictionary
+    the values are casted in the required Python type
+    '''
+    string_params = task.get_parameters_as_dict()
+    clean_params = {}
+    for k, v in string_params["General"].items():
+        try:
+            # ast.literal eval cannot read empty strings + actual strings
+            # i.e. ast.literal_eval("True") -> True, ast.literal_eval("i am cute") -> error
+            clean_params[k] = ast.literal_eval(v)
+        except:
+            # if exception is triggered, it's an actual string, or empty string
+            clean_params[k] = v
+    return OmegaConf.create(clean_params)
 
 
 def get_dataloader(split_name, cfg):
@@ -109,10 +116,20 @@ def test(cfg, model) -> list:
     return results
 
 
-@hydra.main(config_path=os.path.join("..", "config"), config_name="config")
+@ hydra.main(config_path=os.path.join("..", "config"), config_name="config")
 def hydra_main(cfg) -> float:
-
     print("Detected config file, initiating task... {}".format(cfg))
+
+    task = Task.init(
+        project_name="DocumentProcessing",
+        task_name="LED-Denoiser-train",
+        output_uri="s3://experiment-logging/storage/",
+    )
+    task.connect(OmegaConf.to_container(cfg, resolve=True))
+    task.set_base_docker("nvidia/cuda:11.4.0-runtime-ubuntu20.04")
+    task.execute_remotely(queue_name="compute", exit_process=True)
+
+    cfg = get_clearml_params(task)
 
     if task:
         if cfg.train:

@@ -1,5 +1,5 @@
 seed: 1234
-gpus: 0
+gpus: 1
 lr: 1e-04
 clip-norm: 0.1
 dropout: 0.2
@@ -8,11 +8,11 @@ num_workers: 4
 limit_val_batches: 0.005
 limit_test_batches: 0.005
 limit_train_batches: 0.002
-max_input_len: 2048
+max_input_len: 1024
 max_output_len: 1024
 val_every: 0.33
-batch_size: 4
-eval_batch_size: 4
+batch_size: 8
+eval_batch_size: 8
 grad_accum: 2
 fp16: False
 grad_ckpt: True
