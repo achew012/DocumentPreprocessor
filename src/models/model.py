@@ -205,8 +205,10 @@ class LongformerDenoiser(pl.LightningModule):
         total_rouge = []
         generated_text = []
         for batch in outputs:
+            # batch score
             total_rouge.append(batch["results"]["rouge1"].mid.fmeasure)
-            generated_text.append(batch["generated_text"])
+            # list of text
+            generated_text += batch["generated_text"]
 
         pred_df = pd.DataFrame(generated_text, columns=["predictions"])
         pred_df.to_parquet(self.cfg.prediction_filename, engine="fastparquet")
