@@ -16,7 +16,7 @@ eval_batch_size: 8
 grad_accum: 2
 fp16: False
 grad_ckpt: True
-attention_window: 256
+attention_window: 512
 num_epochs: 5
 use_entity_embeddings: False
 model_name: allenai/led-base-16384

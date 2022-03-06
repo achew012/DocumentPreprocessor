@@ -156,6 +156,7 @@ class LongformerDenoiser(pl.LightningModule):
         generated_outcome = self.tokenizer.batch_decode(
             outputs["sequences"], skip_special_tokens=True
         )
+
         gold = self.tokenizer.batch_decode(
             tgt_input_ids, skip_special_tokens=True)
 
@@ -170,12 +171,12 @@ class LongformerDenoiser(pl.LightningModule):
         #     title="batch_rouge_{}".format(split), series=split, value=results["rouge1"], iteration=batch_nb
         # )
 
-        return generated_outcome, results
+        return gold, generated_outcome, results
 
     #################################################################################
 
     def validation_step(self, batch, batch_nb):
-        batch_generated_text, batch_rouge = self._evaluation_step(
+        batch_gold, batch_generated_text, batch_rouge = self._evaluation_step(
             "val", batch, batch_nb
         )
         return {
@@ -193,24 +194,28 @@ class LongformerDenoiser(pl.LightningModule):
         )
 
     def test_step(self, batch, batch_nb):
-        batch_generated_text, batch_rouge = self._evaluation_step(
+        batch_gold, batch_generated_text, batch_rouge = self._evaluation_step(
             "test", batch, batch_nb
         )
         return {
             "results": batch_rouge,
+            "gold": batch_gold,
             "generated_text": batch_generated_text,
         }
 
     def test_epoch_end(self, outputs):
         total_rouge = []
+        gold_text = []
         generated_text = []
         for batch in outputs:
             # batch score
             total_rouge.append(batch["results"]["rouge1"].mid.fmeasure)
             # list of text
+            gold_text += batch["gold"]
             generated_text += batch["generated_text"]
 
-        pred_df = pd.DataFrame(generated_text, columns=["predictions"])
+        pred_df = pd.DataFrame({'predictions': generated_text, 'gold': gold_text}, columns=[
+                               "predictions", "gold"])
         pred_df.to_parquet(self.cfg.prediction_filename, engine="fastparquet")
         self.task.upload_artifact(
             "generated_text", self.cfg.prediction_filename
